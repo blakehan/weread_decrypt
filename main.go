@@ -116,7 +116,6 @@ func decryptFile(vid int, filePath string) {
 		}
 		zipFile = append(zipFile, b[:n]...)
 	}
-	//创建output目录
 	err = os.MkdirAll("./output", 0777)
 	if err != nil {
 		fmt.Println(err)
@@ -138,9 +137,7 @@ func decryptFile(vid int, filePath string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		//如果文件名为info.txt
 		if f.Name == "info.txt" {
-			//json解析
 			b, err := ioutil.ReadAll(r)
 			if err != nil {
 				fmt.Println(err)
@@ -151,7 +148,6 @@ func decryptFile(vid int, filePath string) {
 			continue
 		}
 		fileName := fmt.Sprintf("%d%s.txt", chapterInfo.Chapters[i-1].ChapterIdx-1, chapterInfo.Chapters[i-1].Title)
-		//判断文件是否存在
 		_, err = os.Stat("./output/" + fileName)
 		if err == nil {
 			continue
