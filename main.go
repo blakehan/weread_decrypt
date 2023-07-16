@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strconv"
 
 	"github.com/yeka/zip"
@@ -36,7 +37,12 @@ func main() {
 		fmt.Println("vid参数错误")
 		return
 	}
-	dirPath := os.Args[2]
+	flag, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		fmt.Println("flag参数错误")
+		return
+	}
+	dirPath := os.Args[3]
 
 	files, err := ioutil.ReadDir(dirPath)
 	if err != nil {
@@ -47,9 +53,15 @@ func main() {
 		if f.IsDir() {
 			continue
 		}
-		if f.Name()[len(f.Name())-3:] == "res" {
-			decryptFile(vid, dirPath+"/"+f.Name())
+		suffix := path.Ext(f.Name())
+		if suffix == ".res" {
+			if flag == 0 {
+				decryptTxtFile(vid, dirPath+"/"+f.Name())
+			} else {
+				decryptHtmlFile(vid, dirPath+"/"+f.Name())
+			}
 		}
+
 	}
 
 }
@@ -73,7 +85,7 @@ func getKeyAndIV(vid int) ([]byte, []byte) {
 	key = key[0:16]
 	return key, iv
 }
-func decryptFile(vid int, filePath string) {
+func decryptTxtFile(vid int, filePath string) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		fmt.Println(err)
@@ -164,6 +176,102 @@ func decryptFile(vid int, filePath string) {
 		}
 		file.Write(b)
 		file.Close()
+	}
+}
+func decryptHtmlFile(vid int, filePath string) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer f.Close()
+	readInt(f)
+	chapterLen := readInt(f)
+	chapterUid := make([]int, chapterLen)
+	for i := 0; i < chapterLen; i++ {
+		chapterUid[i] = readInt(f)
+	}
+	fmt.Println("章节Uid", chapterUid)
+	readInt(f)
+	encryptData := make([]byte, 16)
+	f.Read(encryptData)
+	key, iv := getKeyAndIV(vid)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	blockMode := cipher.NewCBCDecrypter(block, iv)
+	decryptedData := make([]byte, 16)
+	blockMode.CryptBlocks(decryptedData, encryptData)
+	pwdStr := ""
+	for i := 0; i < len(decryptedData); i++ {
+		if decryptedData[i] < 32 || decryptedData[i] > 126 {
+			continue
+		}
+		pwdStr += string(decryptedData[i])
+	}
+	fmt.Println("密码", pwdStr)
+	f.Read(make([]byte, 8))
+	zipFile := make([]byte, 0)
+	for {
+		b := make([]byte, 1024)
+		n, err := f.Read(b)
+		if err != nil {
+			break
+		}
+		zipFile = append(zipFile, b[:n]...)
+	}
+	err = os.MkdirAll("./output", 0777)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	zipReader, err := zip.NewReader(bytes.NewReader(zipFile), int64(len(zipFile)))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, f := range zipReader.File {
+		if f.IsEncrypted() {
+			f.SetPassword(pwdStr)
+		}
+		r, err := f.Open()
+		if err != nil {
+			log.Fatal(err)
+		}
+		//解压文件
+		fileName := "./output/" + f.Name
+		_, err = os.Stat(fileName)
+		if err == nil {
+			continue
+		}
+		//创建目录
+		dir := path.Dir(fileName)
+		_, err = os.Stat(dir)
+		if err != nil {
+			err = os.MkdirAll(dir, 0777)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
+
+		file, err := os.Create(fileName)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		b, err := ioutil.ReadAll(r)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		file.Write(b)
+		file.Close()
+
 	}
 }
 func readInt(f *os.File) int {

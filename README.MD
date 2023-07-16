@@ -15,7 +15,7 @@
 1. Clone this repo
 2. go mod tidy
 3. go build
-4. ./weread_decrypt.exe vid "Your .res file folder"
+4. ./weread_decrypt.exe [vid] [flag] ["Your .res file folder"] 网文 flag 为 0 写出 txt 文件 实体书 flag 为 1 写出 html 文件
 5. Check output folder
 
 ## Example
@@ -24,3 +24,7 @@
 ![pic](pic/image2.png)
 ![pic](pic/image3.png)
 ![pic](pic/image4.png)
+实体书
+![pic](pic/image5.png)
+![pic](pic/image6.png)
+![Alt text](image7.png)
